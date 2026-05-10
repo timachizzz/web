@@ -66,5 +66,4 @@ def success():
 db_session.global_init("db/GV.db")
 
 if __name__ == '__main__':
-
     app.run(host='localhost', port=8000)

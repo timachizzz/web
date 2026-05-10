@@ -1,6 +1,123 @@
-{% extends "base.html" %}  <!-- Какой шаблон родительский?  -->
+{% extends "base.html" %}
 
-{% block content %}  <!-- Блок для вставки в родительский шаблон -->
-    <h1>{{username}}</h1>  <!-- Содержимое, которое хотим вставить -->
-    <a href="/login" class="button">Назад</a>
+{% block content %}
+<style>
+  .svg-wrapper svg {
+    width: auto !important;
+    height: 100% !important;
+  }
+
+  /* Базовый стиль кругов */
+  svg circle {
+    cursor: pointer;
+    transition: opacity 0.2s, filter 0.2s;
+  }
+
+  /* Мягкое свечение при наведении – только для не занятых */
+  svg circle:not(.booked):hover {
+    filter: drop-shadow(0 0 6px rgba(46, 125, 50, 0.7));
+  }
+
+  /* Занятые (красные) деревья */
+  svg circle.booked {
+    cursor: not-allowed;
+    pointer-events: none;   /* клик не сработает */
+    fill: #e53935 !important; /* красный */
+  }
+</style>
+
+<div style="
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #ffffff;
+">
+  <div class="svg-wrapper" style="height: 100%;">
+    {% include "vg.svg" %}
+  </div>
+</div>
+
+<script>
+  (function() {
+    // Ключ для localStorage – список id занятых деревьев (через запятую)
+    const STORAGE_KEY = 'bookedTrees';
+
+    // Восстановить цвета занятых деревьев при загрузке
+    function applyBookedStatus() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const bookedIds = raw.split(',');
+
+      bookedIds.forEach(id => {
+        const circle = document.getElementById(id);
+        if (circle) {
+          circle.classList.add('booked');
+          circle.setAttribute('fill', '#e53935');
+        }
+      });
+    }
+
+    // Добавить дерево в список занятых
+    function bookTree(treeId) {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      let bookedIds = raw ? raw.split(',') : [];
+      if (!bookedIds.includes(treeId)) {
+        bookedIds.push(treeId);
+        localStorage.setItem(STORAGE_KEY, bookedIds.join(','));
+      }
+    }
+
+    // Инициализация после загрузки DOM
+    document.addEventListener('DOMContentLoaded', function() {
+      // Применяем сохранённые статусы
+      applyBookedStatus();
+
+      const circles = document.querySelectorAll('svg circle');
+
+      circles.forEach(circle => {
+        circle.addEventListener('click', function(e) {
+          // Если уже занято – ничего не делаем
+          if (this.classList.contains('booked')) return;
+
+          const treeId = this.getAttribute('id');
+          const fill = this.getAttribute('fill') ||
+                       (this.style && this.style.fill) ||
+                       window.getComputedStyle(this).fill;
+
+          const titleEl = this.querySelector('title');
+          const treeName = titleEl ? titleEl.textContent : (treeId || 'дерево');
+
+          // Проверяем зелёный цвет (свободен)
+          const isFree = fill && (
+            fill.toLowerCase().includes('86d524') ||
+            fill === 'green' ||
+            fill === 'rgb(134, 213, 36)'
+          );
+
+          if (!isFree) {
+            alert(`Дерево "${treeName}" уже занято.`);
+            return;
+          }
+
+          // Подтверждение бронирования
+          if (confirm(`🌳 Дерево "${treeName}" свободно!\nЗабронировать?`)) {
+            // Меняем цвет на красный и делаем неактивным
+            this.setAttribute('fill', '#e53935');
+            this.classList.add('booked');
+
+            // Сохраняем в localStorage
+            bookTree(treeId);
+
+            // Позже здесь будет реальный API-запрос:
+            // fetch(`/api/trees/${treeId}/book`, { method: 'POST' }) ...
+            alert(`✅ Дерево "${treeName}" забронировано!`);
+          }
+        });
+      });
+    });
+  })();
+</script>
 {% endblock %}
